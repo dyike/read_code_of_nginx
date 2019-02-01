@@ -2,7 +2,7 @@
 
 ### Nginx进程间的关系
 
-Nginx是支持单进程提供服务的(master进程)，为什么要按照master-worker方式配置同时穷多个进程？
+Nginx是支持单进程提供服务的(master进程)，为什么要按照master-worker方式配置多个进程？
 
 好处：
 1) master进程不对用户请求提供服务，只用来管理真正提供服务的worker进程，所以master可以是唯一的。
