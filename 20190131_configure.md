@@ -1,6 +1,32 @@
 ## 执行configure发生了什么
 
+`
+|-- objs
+|   |-- autoconf.err
+|   |-- Makefile
+|   |-- ngx_auto_config.h
+|   |-- ngx_auto_headers.h
+|   |-- ngx_modules.c
+|   `-- src
+|       |-- core
+|       |-- event
+|       |   `-- modules
+|       |-- http
+|       |   |-- modules
+|       |   |   `-- perl
+|       |   `-- v2
+|       |-- mail
+|       |-- misc
+|       |-- os
+|       |   |-- unix
+|       |   `-- win32
+|       `-- stream
+|
+`
+
 最终的产物是生成了nginx源码目录下面的`Makefile`文件和`objs`目录。
+
+其中，src目录用于存在编译生产的目标文件。
 
 ### configure注释说明
 
