@@ -1,3 +1,9 @@
+## 执行configure发生了什么
+
+最终的产物是生成了nginx源码目录下面的`Makefile`文件和`objs`目录。
+
+### configure注释说明
+
 ```sh 
 
 #!/bin/sh
