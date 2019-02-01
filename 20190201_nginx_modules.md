@@ -4,7 +4,8 @@
 ## 默认编译进Nginx的HTTP模块
 
 也可以从HTTP模块去除。
-`
+
+```
 --without-http_charset_module 不安装http charset module。这个模块可以将服务器发出的HTTP响应重编码
 --without-http_gzip_module 不安装http gzip module。在服务器发出的HTTP响应包中，这个模块可以按照配置文件指定的content-type对特定大小的HTTP响应包体执行gzip压缩
 --without-http_ssi_module 不安装http ssi module。该模块可以在向用户返回的HTTP响应包体中加入特定的内容，如HTML文件中固定的页头和页尾
@@ -27,13 +28,14 @@
 --without-http_empty_gif_module 不安装http empty gif module。该模块可以使得Nginx在收到无效请求时，立刻返回内存中的1×1像素的GIF图片。这种好处在于，对于明显的无效请求不会去试图浪费服务器资源
 --without-http_browser_module 不安装http browser module。该模块会根据HTTP请求中的user-agent字段（该字段通常由浏览器填写）来识别浏览器
 --without-http_upstream_ip_hash_module 不安装http upstream ip hash module。该模块提供当Nginx与后端server建立连接时，会根据IP做散列运算来决定与后端哪台server通信，这样可以实现负载均衡
-`
+
+```
 
 ## 默认不会编译进Nginx的HTTP模块
 
 如果需要手动带上相关参数。
 
-`
+```
 --with-http_ssl_module 安装http ssl module。该模块使Nginx支持SSL协议，提供HTTPS服务。
 注意：该模块的安装依赖于OpenSSL开源软件，即首先应确保已经在之前的参数中配置了OpenSSL
 --with-http_realip_module 安装http realip module。该模块可以从客户端请求里的header信息（如X-Real-IP或者X-Forwarded-For）中获取真正的客户端IP地址
@@ -55,24 +57,22 @@
 --with-http_degradation_module 安装http degradation module。该模块针对一些特殊的系统调用（如sbrk）做一些优化，如直接返回HTTP响应码为204或者444。目前不支持Linux系统
 --with-http_stub_status_module 安装http stub status module。该模块可以让运行中的Nginx提供性能统计页面，获取相关的并发连接、请求的信息（14.2.1节中简单介绍了该模块的原理）
 --with-google_perftools_module 安装google perftools module。该模块提供Google的性能测试工具
-`
+```
 
 ## 邮件代理服务器的相关模块
 
-`
+```
 --with-mail 安装邮件服务器反向代理模块，使Nginx可以反向代理IMAP、POP3、SMTP等协议。该模块默认不安装
 --with-mail_ssl_module 安装mail ssl module。该模块可以使IMAP、POP3、SMTP等协议基于SSL/TLS协议之上使用。该模块默认不安装并依赖于OpenSSL库
 --without-mail_pop3_module 不安装mail pop3 module。在使用--with-mail参数后，pop3 module是默认安装的，以使Nginx支持POP3协议
 --without-mail_imap_module 不安装mail imap module。在使用--with-mail参数后，imap module是默认安装的，以使Nginx支持IMAP
 --without-mail_smtp_module 不安装mail smtp module。在使用--with-mail参数后，smtp module是默认安装的，以使Nginx支持SMTP
-`
+```
 
 ## 其他
 
-`
+```
 --with-aio_module 使用AIO方式处理事件驱动
 注意：这里的aio module只能与FreeBSD操作系统上的kqueue事件处理机制合作，Linux上无法使用默认情况下是不安装aio module的
-`
-
-
+```
 
