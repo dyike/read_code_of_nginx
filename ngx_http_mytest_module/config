@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# 仅在configure执行时使用，一般设置为模块名称
+ngx_addon_name=ngx_http_mytest_module
+
+# 在重新设置HTTP_MODULES变量时，不要直接覆盖它，因为configure调用到自定义的config脚本前，
+# 已经将各个HTTP模块设置到HTTP_MODULES变量中了，因此需要如下设置
+HTTP_MODULES="$HTTP_MODULES ngx_http_mytest_module"
+
+# 用于指定新增代码模块的源代码
+# 在设置NGX_ADDON_SRCS时可以使用$ngx_addon_dir变量，等价于configure执行时`--add-module=PATH`的path参数
+NGX_ADDON_SRCS="$NGX_ADDON_SRCS $ngx_addon_dir/ngx_http_mytest_module.c"
