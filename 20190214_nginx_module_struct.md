@@ -82,4 +82,65 @@ struct ngx_module_s {
 最重要的是设置ctx和commands这两个成员，对于http类型的模块来说,`ngx_module_t`中的ctx指针必须指向`ngx_http_module_t`接口。
 
 
+### ngx_http_module_t结构
 
+./nginx-1.15.8/src/http/ngx_http_config.h
+
+```c
+typedef struct {
+    // 解析配置文件前调用
+    ngx_int_t   (*preconfiguration)(ngx_conf_t *cf);
+    // 完成配置文件的解析后调用
+    ngx_int_t   (*postconfiguration)(ngx_conf_t *cf);
+    // 当需要创建数据结构用于存储main级别的全局配置项
+    void       *(*create_main_conf)(ngx_conf_t *cf);
+    // 初始化main级别的配置项
+    char       *(*init_main_conf)(ngx_conf_t *cf, void *conf);
+    // 当需要创建数据结构用于存储srv级别的配置项
+    void       *(*create_srv_conf)(ngx_conf_t *cf);
+    // merge_srv_conf回调方法主要用于合并main和srv级别下的同名配置项
+    char       *(*merge_srv_conf)(ngx_conf_t *cf, void *prev, void *conf);
+    // 当需要创建数据结构用于存储loc级别的配置项
+    void       *(*create_loc_conf)(ngx_conf_t *cf);
+    // merge_loc_conf回调方法主要用于合并srv级别和loc级别下的同名配置项
+    char       *(*merge_loc_conf)(ngx_conf_t *cf, void *prev, void *conf);
+} ngx_http_module_t;
+```
+
+调用顺序和定义顺序可能不一样，在HTTP框架调用的回调的顺序可能是这样的：
+
+```
+1) create_main_conf
+2) create_srv_conf
+3) create_loc_conf
+4) preconfiguration 
+5) init_main_conf
+6) merge_srv_conf 
+7) merge_loc_conf
+8) postconfiguration
+```
+
+
+
+### `ngx_command_t`结构
+
+./nginx-1.15.8/src/core/ngx_conf_file.h
+
+```c
+typedef struct ngx_command_s ngx_command_t;
+struct ngx_command_s { 
+    // 配置项名称 如 gzip
+    ngx_str_t             name;
+    // 配置项类型，指定配置项可以出现的位置
+    ngx_uint_t            type;
+    // 出现了name中指定的配置项后，调用set方法处理配置项参数
+    char               *(*set)(ngx_conf_t *cf, ngx_command_t *cmd, void *conf);
+    // 在配置文件中的偏移量
+    ngx_uint_t            conf;
+    ngx_uint_t            offset;
+    // 配置项读取后的处理方法，必须是ngx_conf_post_t结构
+    void                 *post;
+
+};
+
+```
