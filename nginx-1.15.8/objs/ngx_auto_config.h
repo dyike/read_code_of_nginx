@@ -1,4 +1,4 @@
-#define NGX_CONFIGURE ""
+#define NGX_CONFIGURE " --prefix=/root/nginx --add-module=./src/ngx_http_mytest_module"
 
 #ifndef NGX_COMPILER
 #define NGX_COMPILER  "gcc 4.9.2 (Debian 4.9.2-10+deb8u1) "
@@ -394,7 +394,7 @@
 
 
 #ifndef NGX_PREFIX
-#define NGX_PREFIX  "/usr/local/nginx/"
+#define NGX_PREFIX  "/root/nginx/"
 #endif
 
 
