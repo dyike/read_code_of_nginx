@@ -59,7 +59,8 @@ ngx_module_t ngx_http_mytest_module = {
 };
 
 
-static ngx_int_t ngx_http_mytest_handler(ngx_http_request_t *r)
+static ngx_int_t 
+ngx_http_mytest_handler(ngx_http_request_t *r)
 {
     printf("yuanfeng test: <%s, %u>\n", __FUNCTION__, __LINE__);
     if (!(r->method && (NGX_HTTP_GET | NGX_HTTP_HEAD))) {
@@ -104,7 +105,8 @@ static ngx_int_t ngx_http_mytest_handler(ngx_http_request_t *r)
     return ngx_http_output_filter(r, &out);
 }
 
-static char* ngx_http_mytest(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
+static char* 
+ngx_http_mytest(ngx_conf_t *cf, ngx_command_t *cmd, void *conf)
 {
     ngx_http_core_loc_conf_t *clcf;
     // 1)找到mytest配置所属的配置块，clcf看上去像是location块内的数据结构，其实不然
