@@ -1,6 +1,6 @@
 ## 执行configure发生了什么
 
-`
+```bash
 |-- objs
 |   |-- autoconf.err
 |   |-- Makefile
@@ -22,7 +22,7 @@
 |       |   `-- win32
 |       `-- stream
 |
-`
+```
 
 最终的产物是生成了nginx源码目录下面的`Makefile`文件和`objs`目录。
 
