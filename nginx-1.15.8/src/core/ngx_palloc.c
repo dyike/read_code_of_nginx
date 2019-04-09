@@ -19,19 +19,19 @@ ngx_pool_t *
 ngx_create_pool(size_t size, ngx_log_t *log)
 {
     ngx_pool_t  *p;
-
-    p = ngx_memalign(NGX_POOL_ALIGNMENT, size, log);
+    // 对内存分配函数进行封装，不同系统运行不同的函数
+    p = ngx_memalign(NGX_POOL_ALIGNMENT, size, log); // 分配一块Size大小的内存，内存空间16字节对齐
     if (p == NULL) {
         return NULL;
     }
-
-    p->d.last = (u_char *) p + sizeof(ngx_pool_t);
+    // 对pool中的数据项赋初始值
+    p->d.last = (u_char *)p + sizeof(ngx_pool_t); // 可用空间要减去这个头部 首sizeof(ngx_pool_t)便是pool的header信息，header信息中的各个字段用于管理整个pool
     p->d.end = (u_char *) p + size;
     p->d.next = NULL;
     p->d.failed = 0;
 
     size = size - sizeof(ngx_pool_t);
-    p->max = (size < NGX_MAX_ALLOC_FROM_POOL) ? size : NGX_MAX_ALLOC_FROM_POOL;
+    p->max = (size < NGX_MAX_ALLOC_FROM_POOL) ? size : NGX_MAX_ALLOC_FROM_POOL; // 不能超过NGX_MAX_ALLOC_FROM_POOL // pool 中最大可用大小
 
     p->current = p;
     p->chain = NULL;
@@ -39,7 +39,7 @@ ngx_create_pool(size_t size, ngx_log_t *log)
     p->cleanup = NULL;
     p->log = log;
 
-    return p;
+    return p; // 指向空间最顶部头部
 }
 
 
@@ -49,7 +49,7 @@ ngx_destroy_pool(ngx_pool_t *pool)
     ngx_pool_t          *p, *n;
     ngx_pool_large_t    *l;
     ngx_pool_cleanup_t  *c;
-
+    // 循环调用所有的析构函数
     for (c = pool->cleanup; c; c = c->next) {
         if (c->handler) {
             ngx_log_debug1(NGX_LOG_DEBUG_ALLOC, pool->log, 0,
@@ -79,13 +79,13 @@ ngx_destroy_pool(ngx_pool_t *pool)
     }
 
 #endif
-
+    // 释放所有大内存结构
     for (l = pool->large; l; l = l->next) {
         if (l->alloc) {
             ngx_free(l->alloc);
         }
     }
-
+    // 释放所有内存池
     for (p = pool, n = pool->d.next; /* void */; p = n, n = n->d.next) {
         ngx_free(p);
 
@@ -101,13 +101,13 @@ ngx_reset_pool(ngx_pool_t *pool)
 {
     ngx_pool_t        *p;
     ngx_pool_large_t  *l;
-
+    // 释放所有大内存结构
     for (l = pool->large; l; l = l->next) {
         if (l->alloc) {
             ngx_free(l->alloc);
         }
     }
-
+    // 依次初始化内存池链上所有内存池描述结构
     for (p = pool; p; p = p->d.next) {
         p->d.last = (u_char *) p + sizeof(ngx_pool_t);
         p->d.failed = 0;
@@ -216,20 +216,27 @@ ngx_palloc_large(ngx_pool_t *pool, size_t size)
     void              *p;
     ngx_uint_t         n;
     ngx_pool_large_t  *large;
-
+    /*
+    // 重新申请一块大小为 size 的新内存
+    // 注意：此处不使用 ngx_memalign 的原因是，新分配的内存较大，对其也没太大必要
+    //  而且后面提供了 ngx_pmemalign 函数，专门用户分配对齐了的内存
+    */
     p = ngx_alloc(size, pool->log);
     if (p == NULL) {
         return NULL;
     }
 
     n = 0;
-
+    // 查找largt链表上空余的large 指针
     for (large = pool->large; large; large = large->next) {
-        if (large->alloc == NULL) {
+        if (large->alloc == NULL) { // 就用这个没用的large
             large->alloc = p;
             return p;
         }
-
+        /*
+        // 如果当前 large 后串的 large 内存块数目大于 3 （不等于3），
+        // 则直接去下一步分配新内存，不再查找了
+        */
         if (n++ > 3) {
             break;
         }
@@ -240,7 +247,7 @@ ngx_palloc_large(ngx_pool_t *pool, size_t size)
         ngx_free(p);
         return NULL;
     }
-
+    // 将新分配的large串在链表后面
     large->alloc = p;
     large->next = pool->large;
     pool->large = large;
@@ -307,7 +314,22 @@ ngx_pcalloc(ngx_pool_t *pool, size_t size)
     return p;
 }
 
-
+/*
+以回收file为例:
+可以看到，ngx_pool_cleanup_file_t中的对象在ngx_buf_t缓冲区的file结构体中都出现过了，意义也是相同的。
+对于file结构体，我们在内存池中已经为它分配过内存，只有在请求结束时才会释放，因此，这里简单地引用file里的成员即可。
+清理文件句柄的完整代码如下:
+ngx_pool_cleanup_t* cln = ngx_pool_cleanup_add(r->pool, sizeof(ngx_pool_cleanup_file_t));
+if (cln == NULL) {
+    return NGX_ERROR;
+}
+cln->handler = ngx_pool_cleanup_file;
+ngx_pool_cleanup_file_t  *clnf = cln->data;
+clnf->fd = b->file->fd;
+clnf->name = b->file->name.data;
+clnf->log = r->pool->log;
+ngx_pool_cleanup_add用于告诉HTTP框架，在请求结束时调用cln的handler方法清理资源。
+*/
 ngx_pool_cleanup_t *
 ngx_pool_cleanup_add(ngx_pool_t *p, size_t size)
 {
@@ -338,6 +360,11 @@ ngx_pool_cleanup_add(ngx_pool_t *p, size_t size)
     return c;
 }
 
+/*
+Nginx会异步地将整个文件高效地发送给用户，但是我们必须要求HTTP框架在响应发送完毕后关闭已经打开的文件句柄，否则将会出现句柄泄露问题。
+设置清理文件句柄也很简单，只需要定义一个ngx_pool_cleanup_t结构体（这是最简单的方法，HTTP框架还提供了其他方式，在请求结束时回调各个HTTP模块的cleanup方法，将在第11章介绍），
+将我们刚得到的文件句柄等信息赋给它，并将Nginx提供的ngx_pool_cleanup_file函数设置到它的handler回调方法中即可。
+*/
 
 void
 ngx_pool_run_cleanup_file(ngx_pool_t *p, ngx_fd_t fd)
