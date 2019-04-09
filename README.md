@@ -5,6 +5,7 @@
 
 ### 阅读笔记(最新的在最上面)
 
+* [Nginx源码目录介绍](20190408_nginx_src_struct.md)
 * [编写自己的Http模块](20190408_nginx_http_module_dev.md)
 * [Nginx中的HTTP模块](20190222_nginx_http_module.md)
 * [Nginx中的HTTP模块的数据结构](20190214_nginx_module_struct.md)
