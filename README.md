@@ -5,6 +5,7 @@
 
 ### 阅读笔记(最新的在最上面)
 
+* [Nginx内存池](notes/20190409_ngx_pool_t.md)
 * [Nginx源码目录介绍](notes/20190408_nginx_src_struct.md)
 * [编写自己的Http模块](notes/20190408_nginx_http_module_dev.md)
 * [Nginx中的HTTP模块](notes/20190222_nginx_http_module.md)
