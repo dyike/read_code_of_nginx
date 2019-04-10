@@ -118,7 +118,8 @@ ngx_reset_pool(ngx_pool_t *pool)
     pool->large = NULL;
 }
 
-
+// ngx_palloc函数将会从pool内存池中分配到size字节的内存，并返回这段内存的起始地址。如果返回NULL空指针，则表示分配失败。
+// 还有一个封装了ngx_palloc的函数ngx_pcalloc，它多做了一件事，就是把ngx_palloc申请到的内存块全部置为0，虽然，多数情况下更适合用ngx_pcalloc来分配内存。
 void *
 ngx_palloc(ngx_pool_t *pool, size_t size)
 {
@@ -281,7 +282,7 @@ ngx_pmemalign(ngx_pool_t *pool, size_t size, size_t alignment)
     return p;
 }
 
-
+// 大块内存释放
 ngx_int_t
 ngx_pfree(ngx_pool_t *pool, void *p)
 {
