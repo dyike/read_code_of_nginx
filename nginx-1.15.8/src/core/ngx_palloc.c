@@ -173,16 +173,16 @@ ngx_palloc_small(ngx_pool_t *pool, size_t size, ngx_uint_t align)
     return ngx_palloc_block(pool, size);
 }
 
-
+// 如果前面开辟的pool空间已经用完，就从新开辟空间ngx_pool_t
 static void *
 ngx_palloc_block(ngx_pool_t *pool, size_t size)
 {
     u_char      *m;
     size_t       psize;
     ngx_pool_t  *p, *new;
-
+    // 当前整个pool的大小
     psize = (size_t) (pool->d.end - (u_char *) pool);
-
+    // 在内存对齐的前提下，新分配一块内存
     m = ngx_memalign(NGX_POOL_ALIGNMENT, psize, pool->log);
     if (m == NULL) {
         return NULL;
@@ -197,19 +197,20 @@ ngx_palloc_block(ngx_pool_t *pool, size_t size)
     m += sizeof(ngx_pool_data_t);
     m = ngx_align_ptr(m, NGX_ALIGNMENT);
     new->d.last = m + size;
-
+    // 判断在当前pool分配内存的失败次数
+    // 如果大于4次，就放弃在此pool上分配，更新current指针，放弃对老pool的内存进行再使用
     for (p = pool->current; p->d.next; p = p->d.next) {
         if (p->d.failed++ > 4) {
-            pool->current = p->d.next;
+            pool->current = p->d.next;  // 更新current指针,每次从pool中分配内存的时候都是从curren开始遍历pool节点获取内存的
         }
     }
-
+    // 让旧指针数据区的next指向新分配的pool
     p->d.next = new;
 
     return m;
 }
 
-
+// 当需要的内存大于pool最大可分配内存大小时，此时首先判断size已经大于pool->max的大小了，所以直接调用ngx_palloc_large进行大内存分配
 static void *
 ngx_palloc_large(ngx_pool_t *pool, size_t size)
 {
