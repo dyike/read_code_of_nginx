@@ -5,6 +5,7 @@
 
 ### 阅读笔记(最新的在最上面)
 
+* [Nginx高级数据结构——动态数组](notes/20190409_ngx_array_t.md)
 * [Nginx内存池](notes/20190409_ngx_pool_t.md)
 * [Nginx源码目录介绍](notes/20190408_nginx_src_struct.md)
 * [编写自己的Http模块](notes/20190408_nginx_http_module_dev.md)
