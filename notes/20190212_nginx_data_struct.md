@@ -37,9 +37,26 @@ typedef unsigned int		uintptr_t;
 
 ```c
 typedef struct {
-    size_t   len;     // 字符串有效疮毒
+    size_t   len;     // 字符串有效长度
     u_char   *data;  // data指针指向字符串起始地址，此字符串未必会以'\0'作为结尾，必须要根据len来使用data成员
 } ngx_str_t;
+
+typedef struct {
+    ngx_str_t   key;
+    ngx_str_t   value;
+} ngx_keyval_t;
+
+typedef struct {
+    unsigned    len:28;
+
+    unsigned    valid:1;
+    unsigned    no_cacheable:1;
+    unsigned    not_found:1;
+    unsigned    escape:1;
+
+    u_char     *data;
+} ngx_variable_value_t;
+
 ```
 
 如果试图将`ngx_str_t`的data成员当做字符串来使用的情况，都可能会导致内存越界！
@@ -60,7 +77,7 @@ struct ngx_list_part_s {
     ngx_list_part_t *next;   //下一个链表元素ngx_list_part_t的地址
 };
 typedef struct {
-    ngx_list_part_t  *last;   //指向链表的最后一个数组元素 
+    ngx_list_part_t  *last;   //指向链表的最后一个数组元素
     ngx_list_part_t  part;    //链表的首个数组元素
     size_t           size;    //限制每个数组元素占用的空间大小
     ngx_uint_t       nalloc;  //表示每个ngx_list_part_t数组的容量，一旦分配后不可更改
@@ -102,9 +119,9 @@ struct ngx_buf_s {
     /* 同一个ngx_buf_t可能被多次反复处理，当然pos的含义是由使用它的模块定义 */
     u_char          *pos;
     /* last表示有效的内容到此位置，pos与last之前的内存是希望nginx处理的内容 */
-    /* 处理文件时，file_pos与file_last的含义与处理内存时的pos与last相同 */ 
+    /* 处理文件时，file_pos与file_last的含义与处理内存时的pos与last相同 */
     u_char          *last;
-    off_t            file_pos;   // 将要处理的文件的位置 
+    off_t            file_pos;   // 将要处理的文件的位置
     off_t            file_last;  // 截止的文件位置
 
     u_char          *start;         /* start of buffer */

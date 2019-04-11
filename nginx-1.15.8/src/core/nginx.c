@@ -190,7 +190,18 @@ static char        *ngx_signal;
 
 static char **ngx_os_environ;
 
-
+/*
+1. debug模式、错误日志、时间、正则、ssl等初始化
+2. 读入命令行参数
+3. OS相关的初始化
+4. 读入并解析配置
+5. 核心模块的初始化
+6. 创建各种临时文件和目录
+7. 创建共享内存
+8. 打开Listen的端口
+9. 所有模块的初始化
+10. 启动worker进程
+*/
 int ngx_cdecl
 main(int argc, char *const *argv)
 {
@@ -206,7 +217,7 @@ main(int argc, char *const *argv)
     if (ngx_strerror_init() != NGX_OK) {
         return 1;
     }
-
+    // 获取命令行参数，比如nginx -v那么ngx_show_version就置1。
     if (ngx_get_options(argc, argv) != NGX_OK) {
         return 1;
     }
@@ -220,7 +231,7 @@ main(int argc, char *const *argv)
     }
 
     /* TODO */ ngx_max_sockets = -1;
-
+    // 初始化nginx环境的当前时间
     ngx_time_init();
 
 #if (NGX_PCRE)
@@ -229,7 +240,13 @@ main(int argc, char *const *argv)
 
     ngx_pid = ngx_getpid();
     ngx_parent = ngx_getppid();
-
+    /*
+    主进程启动的时候，此时还没有读取配置文件，即没有指定日志打印在哪儿。
+    nginx这时候虽然可以将一些出错内容或者结果输到标准输出，但是如果要记录一些系统初始化情况、socket监听状况，还是需要写到日志文件中去的。
+    在nginx的main函数中，首先会调用ngx_log_init函数，默认日志文件为：安装路径/logs/error.log，如果这个文件没有权限访问的话，
+会直接报错退出。
+    在mian函数结尾处，在ngx_master_process_cycle函数调用之前，会close掉这个日志文件。
+    */
     log = ngx_log_init(ngx_prefix);
     if (log == NULL) {
         return 1;
@@ -249,6 +266,7 @@ main(int argc, char *const *argv)
     init_cycle.log = log;
     ngx_cycle = &init_cycle;
 
+    // 创建内存池
     init_cycle.pool = ngx_create_pool(1024, log);
     if (init_cycle.pool == NULL) {
         return 1;
@@ -447,7 +465,19 @@ ngx_show_version_info(void)
     }
 }
 
+/*
+在执行不重启服务升级Nginx的操作，老的Nginx进程会通过环境变量"NGINX"来传递需要打开的监听端口
+新的Nginx进程会通过ngx_add_inherited_sockets方法来使用已经打开的TCP监听端口
 
+ngx_add_inherited_sockets函数通过环境变量NGINX完成socket的继承，继承来的socket将会放在init_cycle的listening数组中。
+在NGINX环境变量中，每个socket中间用冒号或分号隔开。完成继承同时设置全局变量ngx_inherited为1
+*/
+/*
+Nginx在不重启服务升级时，就是说平滑升级，它不会重启master进程而启动新版的Nginx程序。
+这样旧版的master进程会通过execve系统调用来启动新版的master进程(先fork出子进程再调用exec来运行新程序)
+此时，旧版的master进程需要通过一种方式告诉新版的master进程，并传递一些必要的信息，这就是平滑升级。
+Nginx是通过环境变量来传递这些信息的，新版的master进程通过ngx_add_inherited_sockets方法由环境变量里读取平滑升级信息，并对旧版本Nginx服务监听的句柄做继承处理。
+*/
 static ngx_int_t
 ngx_add_inherited_sockets(ngx_cycle_t *cycle)
 {
@@ -460,10 +490,10 @@ ngx_add_inherited_sockets(ngx_cycle_t *cycle)
     if (inherited == NULL) {
         return NGX_OK;
     }
-
+    // getenv()用来取得参数envvar环境变量的内容。参数envvar为环境变量的名称，如果该变量存在则会返回指向该内容的指针
     ngx_log_error(NGX_LOG_NOTICE, cycle->log, 0,
                   "using inherited sockets from \"%s\"", inherited);
-
+    // 初始化ngx_cycle.listening数组，并且数组中包含10个元素
     if (ngx_array_init(&cycle->listening, cycle->pool, 10,
                        sizeof(ngx_listening_t))
         != NGX_OK)
@@ -471,9 +501,11 @@ ngx_add_inherited_sockets(ngx_cycle_t *cycle)
         return NGX_ERROR;
     }
 
+    // 遍历环境变量
     for (p = inherited, v = p; *p; p++) {
+        // 环境变量的值以':'or';'分开
         if (*p == ':' || *p == ';') {
-            s = ngx_atoi(v, p - v);
+            s = ngx_atoi(v, p - v);   // 转换十进制sockets
             if (s == NGX_ERROR) {
                 ngx_log_error(NGX_LOG_EMERG, cycle->log, 0,
                               "invalid socket number \"%s\" in " NGINX_VAR
@@ -491,7 +523,7 @@ ngx_add_inherited_sockets(ngx_cycle_t *cycle)
 
             ngx_memzero(ls, sizeof(ngx_listening_t));
 
-            ls->fd = (ngx_socket_t) s;
+            ls->fd = (ngx_socket_t) s;   // 保存socket文件描述符到数组中
         }
     }
 
@@ -501,7 +533,7 @@ ngx_add_inherited_sockets(ngx_cycle_t *cycle)
                       " environment variable, ignoring", v);
     }
 
-    ngx_inherited = 1;
+    ngx_inherited = 1;    // 表示已经得到要继承的socket
 
     return ngx_set_inherited_sockets(cycle);
 }
@@ -907,7 +939,7 @@ ngx_save_argv(ngx_cycle_t *cycle, int argc, char *const *argv)
     return NGX_OK;
 }
 
-
+// 初始化ngx_cycle的prefix,conf_prefix,conf_file,conf_params等字段
 static ngx_int_t
 ngx_process_options(ngx_cycle_t *cycle)
 {
