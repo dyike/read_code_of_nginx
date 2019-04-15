@@ -5,6 +5,7 @@
 
 ### 阅读笔记(最新的在最上面)
 
+* [Nginx高级数据结构——hash](notes/20190413_ngx_hash_t.md)
 * [Nginx高级数据结构——链表](notes/20190411_ngx_list_t.md)
 * [Nginx高级数据结构——动态数组](notes/20190409_ngx_array_t.md)
 * [Nginx内存池](notes/20190409_ngx_pool_t.md)
