@@ -48,7 +48,15 @@ ngx_hash_find(ngx_hash_t *hash, ngx_uint_t key, u_char *name, size_t len)
     return NULL;
 }
 
-
+/*
+nginx为了处理带有通配符的域名的匹配问题，实现了ngx_hash_wildcard_t这样的hash表。他可以支持两种类型的带有通配符的域名。一种是通配符在前的，
+例如：“*.abc.com”，也可以省略掉星号，直接写成”.abc.com”。这样的key，可以匹配www.abc.com，qqq.www.abc.com之类的。另外一种是通配符在末
+尾的，例如：“mail.xxx.*”，请特别注意通配符在末尾的不像位于开始的通配符可以被省略掉。这样的通配符，可以匹配mail.xxx.com、mail.xxx.com.cn、
+mail.xxx.net之类的域名。
+有一点必须说明，就是一个ngx_hash_wildcard_t类型的hash表只能包含通配符在前的key或者是通配符在后的key。不能同时包含两种类型的通配符
+的key。ngx_hash_wildcard_t类型变量的构建是通过函数ngx_hash_wildcard_init完成的，而查询是通过函数ngx_hash_find_wc_head或者
+ngx_hash_find_wc_tail来做的。ngx_hash_find_wc_head是查询包含通配符在前的key的hash表的，而ngx_hash_find_wc_tail是查询包含通配符在后的key的hash表的。
+*/
 void *
 ngx_hash_find_wc_head(ngx_hash_wildcard_t *hwc, u_char *name, size_t len)
 {
@@ -61,6 +69,8 @@ ngx_hash_find_wc_head(ngx_hash_wildcard_t *hwc, u_char *name, size_t len)
 
     n = len;
 
+    // 从后往前搜索第一个dot，则n到len-1 即为关键字中最后一个 子关键字
+    // name中最后面的字符串，如 AA.BB.CC.DD，则这里获取到的就是DD
     while (n) {
         if (name[n - 1] == '.') {
             break;
@@ -71,6 +81,7 @@ ngx_hash_find_wc_head(ngx_hash_wildcard_t *hwc, u_char *name, size_t len)
 
     key = 0;
 
+    // n 到 len-1 即为关键字中最后一个 子关键字，计算其hash值
     for (i = n; i < len; i++) {
         key = ngx_hash(key, name[i]);
     }
@@ -78,7 +89,7 @@ ngx_hash_find_wc_head(ngx_hash_wildcard_t *hwc, u_char *name, size_t len)
 #if 0
     ngx_log_error(NGX_LOG_ALERT, ngx_cycle->log, 0, "key:\"%ui\"", key);
 #endif
-
+    // 调用普通查找找到关键字的value（用户自定义数据指针）
     value = ngx_hash_find(&hwc->hash, key, &name[n], len - n);
 
 #if 0
@@ -99,34 +110,34 @@ ngx_hash_find_wc_head(ngx_hash_wildcard_t *hwc, u_char *name, size_t len)
          */
 
         if ((uintptr_t) value & 2) {
-
+            // 搜索到了最后一个子关键字且没有通配符，如"example.com"的example
             if (n == 0) {
 
                 /* "example.com" */
-
+                // value低两位为11，仅为"*.example.com"的指针，这里没有通配符，没招到，返回NULL
                 if ((uintptr_t) value & 1) {
                     return NULL;
                 }
-
+                // value低两位为10，为"example.com"的指针，value就在下一级的ngx_hash_wildcard_t 的value中，去掉携带的低2位11
                 hwc = (ngx_hash_wildcard_t *)
                                           ((uintptr_t) value & (uintptr_t) ~3);
                 return hwc->value;
             }
-
+            // 还未搜索完，低两位为11或10，继续去下级ngx_hash_wildcard_t中搜索
             hwc = (ngx_hash_wildcard_t *) ((uintptr_t) value & (uintptr_t) ~3);
-
+            // 继续搜索 关键字中剩余部分，如"example.com"，搜索 0 到 n -1 即为 example
             value = ngx_hash_find_wc_head(hwc, name, n - 1);
 
             if (value) {
                 return value;
             }
-
+            // 低两位为00 找到，即为wc->value
             return hwc->value;
         }
 
-        if ((uintptr_t) value & 1) {
+        if ((uintptr_t) value & 1) { // 低两位为01
 
-            if (n == 0) {
+            if (n == 0) {  // 关键字没有通配符，错误返回空
 
                 /* "example.com" */
 
@@ -142,7 +153,34 @@ ngx_hash_find_wc_head(ngx_hash_wildcard_t *hwc, u_char *name, size_t len)
     return hwc->value;
 }
 
-
+/*
+nginx为了处理带有通配符的域名的匹配问题，实现了ngx_hash_wildcard_t这样的hash表。他可以支持两种类型的带有通配符的域名。一种是通配符在前的，
+例如：“*.abc.com”，也可以省略掉星号，直接写成”.abc.com”。这样的key，可以匹配www.abc.com，qqq.www.abc.com之类的。另外一种是通配符在末
+尾的，例如：“mail.xxx.*”，请特别注意通配符在末尾的不像位于开始的通配符可以被省略掉。这样的通配符，可以匹配mail.xxx.com、mail.xxx.com.cn、
+mail.xxx.net之类的域名。
+有一点必须说明，就是一个ngx_hash_wildcard_t类型的hash表只能包含通配符在前的key或者是通配符在后的key。不能同时包含两种类型的通配符
+的key。ngx_hash_wildcard_t类型变量的构建是通过函数ngx_hash_wildcard_init完成的，而查询是通过函数ngx_hash_find_wc_head或者
+ngx_hash_find_wc_tail来做的。ngx_hash_find_wc_head是查询包含通配符在前的key的hash表的，而ngx_hash_find_wc_tail是查询包含通配符在后的key的hash表的。
+hinit: 构造一个通配符hash表的一些参数的一个集合。关于该参数对应的类型的说明，请参见ngx_hash_t类型中ngx_hash_init函数的说明。
+names: 构造此hash表的所有的通配符key的数组。特别要注意的是这里的key已经都是被预处理过的。例如：“*.abc.com”或者“.abc.com”
+被预处理完成以后，变成了“com.abc.”。而“mail.xxx.*”则被预处理为“mail.xxx.”。为什么会被处理这样？这里不得不简单地描述一下
+通配符hash表的实现原理。当构造此类型的hash表的时候，实际上是构造了一个hash表的一个“链表”，是通过hash表中的key“链接”起来的。
+比如：对于“*.abc.com”将会构造出2个hash表，第一个hash表中有一个key为com的表项，该表项的value包含有指向第二个hash表的指针，
+而第二个hash表中有一个表项abc，该表项的value包含有指向*.abc.com对应的value的指针。那么查询的时候，比如查询www.abc.com的时候，
+先查com，通过查com可以找到第二级的hash表，在第二级hash表中，再查找abc，依次类推，直到在某一级的hash表中查到的表项对应的value对
+应一个真正的值而非一个指向下一级hash表的指针的时候，查询过程结束。这里有一点需要特别注意的，就是names数组中元素的value所对应的
+值（也就是真正的value所在的地址）必须是能被4整除的，或者说是在4的倍数的地址上是对齐的。因为这个value的值的低两位bit是有用的，
+所以必须为0。如果不满足这个条件，这个hash表查询不出正确结果。
+nelts: names数组元素的个数。
+*/
+/*
+@hwc  表示支持通配符的哈希表的结构体
+@name 表示实际关键字地址
+@len  表示实际关键字长度
+ngx_hash_find_wc_tail与前置通配符查找差不多，这里value低两位仅有两种标志，更加简单：
+00 - value 是指向 用户自定义数据
+11 - value的指向下一个哈希表
+*/
 void *
 ngx_hash_find_wc_tail(ngx_hash_wildcard_t *hwc, u_char *name, size_t len)
 {
